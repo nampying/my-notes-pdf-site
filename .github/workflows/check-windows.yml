@@ -1,0 +1,54 @@
+name: Comprobar versión Windows
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Versión a comprobar
+        required: true
+        default: v0.9.1
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Descargar y extraer la publicación
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          gh release download $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --pattern '*Windows-x64.exe' --pattern '*Source.zip' --dir downloads
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $source = Get-ChildItem downloads/*Source.zip | Select-Object -First 1
+          Expand-Archive $source.FullName -DestinationPath source
+          $exe = Get-ChildItem downloads/*Windows-x64.exe | Select-Object -First 1
+          7z x $exe.FullName -oouter -y
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $inner = Get-ChildItem outer -Recurse -Filter app-64.7z | Select-Object -First 1
+          if (-not $inner) { throw 'No se encontró el runtime dentro del portable' }
+          7z x $inner.FullName -oruntime -y
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Instalar dependencias de las pruebas
+        working-directory: source
+        run: npm ci --ignore-scripts
+      - name: Probar la aplicación de Windows
+        working-directory: source
+        shell: pwsh
+        run: |
+          $env:MYNOTES_DESKTOP_APP = (Resolve-Path '../runtime/My Notes PDF.exe').Path
+          npx playwright test --config playwright.desktop.config.ts tests/desktop/windows.spec.ts tests/desktop/toc.spec.ts
+          exit $LASTEXITCODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-validation
+          path: |
+            source/docs/evidence/windows-native.png
+            source/docs/evidence/desktop-results.json
+            source/test-results/
