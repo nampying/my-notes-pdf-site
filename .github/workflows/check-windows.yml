@@ -34,6 +34,26 @@ jobs:
           if (-not $inner) { throw 'No se encontró el runtime dentro del portable' }
           7z x $inner.FullName -oruntime -y
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Abrir el EXE portable completo
+        shell: pwsh
+        run: |
+          $env:MYNOTES_PROFILE = Join-Path $env:RUNNER_TEMP ([guid]::NewGuid().ToString())
+          $exe = Get-ChildItem downloads/*Windows-x64.exe | Select-Object -First 1
+          $process = Start-Process $exe.FullName -PassThru
+          try {
+            $opened = $false
+            for ($i = 0; $i -lt 60; $i++) {
+              Start-Sleep -Seconds 1
+              $window = Get-Process -Name 'My Notes PDF' -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -eq 'My Notes PDF' }
+              if ($window) { $opened = $true; break }
+              if ($process.HasExited) { throw "El portable salió antes de abrir la ventana: $($process.ExitCode)" }
+            }
+            if (-not $opened) { throw 'El portable no abrió la ventana en 60 segundos' }
+            Write-Output 'El EXE portable abrió su ventana correctamente.'
+          } finally {
+            taskkill /PID $process.Id /T /F
+            Remove-Item Env:MYNOTES_PROFILE
+          }
       - name: Instalar dependencias de las pruebas
         working-directory: source
         run: npm ci --ignore-scripts
