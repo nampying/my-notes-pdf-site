@@ -5,7 +5,7 @@ on:
       tag:
         description: Versión a comprobar
         required: true
-        default: v0.11.0
+        default: v0.12.0
 permissions:
   contents: read
 jobs:
@@ -63,7 +63,7 @@ jobs:
         run: |
           $env:MYNOTES_DESKTOP_APP = (Resolve-Path '../runtime/My Notes PDF.exe').Path
           $env:DEBUG = 'pw:browser*'
-          npx playwright test --config playwright.desktop.config.ts tests/desktop/windows.spec.ts tests/desktop/toc.spec.ts tests/desktop/object-tools.spec.ts tests/desktop/page-actions.spec.ts
+          npx playwright test --config playwright.desktop.config.ts tests/desktop/windows.spec.ts tests/desktop/toc.spec.ts tests/desktop/object-tools.spec.ts tests/desktop/page-actions.spec.ts tests/desktop/pptx-export.spec.ts
           exit $LASTEXITCODE
       - uses: actions/upload-artifact@v4
         if: always()
@@ -71,5 +71,6 @@ jobs:
           name: windows-validation
           path: |
             source/docs/evidence/windows-native.png
+            source/docs/evidence/native-pptx-drive.png
             source/docs/evidence/desktop-results.json
             source/test-results/
