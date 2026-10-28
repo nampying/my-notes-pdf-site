@@ -5,7 +5,7 @@ on:
       tag:
         description: Versión a comprobar
         required: true
-        default: v0.20.0
+        default: v0.20.1
 permissions:
   contents: read
 jobs:
